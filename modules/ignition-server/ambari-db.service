@@ -1,0 +1,21 @@
+[Unit]
+Description=postgres
+After=docker
+Requires=docker
+
+[Service]
+Restart=always
+TimeoutStartSec=20m
+ExecStartPre=-/usr/bin/docker rm ambari-db
+ExecStartPre=/usr/bin/docker pull ${ambari_db_docker_image}
+ExecStart=/usr/bin/docker run --name ambari-db \
+                              --publish 5432:5432 \
+                              --env POSTGRES_USER=${ambari_db_username} \
+                              --env POSTGRES_PASSWORD=${ambari_db_password} \
+                              --volume /var/run/ambari-agent:/var/run/ambari-agent \
+                              --volume /var/lib/postgresql/data/pgdata:/var/lib/postgresql/data/pgdata \
+                              ${ambari_db_docker_image}
+ExecStop=/usr/bin/docker stop ambari-db
+
+[Install]
+WantedBy=multi-user.target

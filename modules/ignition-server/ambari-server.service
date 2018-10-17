@@ -1,0 +1,36 @@
+[Unit]
+Description=ambari-server
+After=postgres
+Requires=postgres
+
+[Service]
+Type=forking
+Restart=always
+TimeoutStartSec=20m
+PIDFile=/var/run/ambari-server/ambari-server.pid
+ExecStartPre=-/usr/bin/docker rm ambari-server
+ExecStartPre=-rm /tmp/ambari-server.signal
+ExecStartPre=/usr/bin/bash -c "/usr/bin/docker run \
+                           --name ambari-server \
+                           --detach \
+                           --pid host \
+                           --network host \
+                           --add-host $(hostname):127.0.0.1 \
+                           --volume /var/run/ambari-server:/var/run/ambari-server \
+                           --volume /tmp:/tmp \
+                           ${ambari_server_docker_image} \
+                           sh -c 'ambari-server setup --database=postgres \
+                                                      --databasehost=localhost \
+                                                      --databaseport=5432 \
+                                                      --databasename=ambari \
+                                                      --databaseusername=${ambari_db_username} \
+                                                      --databasepassword=${ambari_db_password} \
+                                                      --silent && \
+                                  ambari-server start && \
+                                  touch /tmp/ambari-server.signal && \
+                                  tail -f /var/log/ambari-server/ambari-server.log'"
+ExecStart=/usr/bin/bash -c "while [ ! -f /tmp/ambari-server.signal ]; do sleep 1; done"
+ExecStop=/usr/bin/docker stop ambari-server
+
+[Install]
+WantedBy=multi-user.target

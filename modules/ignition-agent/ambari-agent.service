@@ -1,0 +1,24 @@
+[Unit]
+Description=ambari-agent
+After=docker
+Requires=docker
+
+[Service]
+Type=forking
+Restart=always
+TimeoutStartSec=20m
+PIDFile=/var/run/ambari-agent/ambari-agent.pid
+ExecStartPre=-/usr/bin/docker rm ambari-agent
+ExecStart=/usr/bin/bash -c "/usr/bin/docker run \
+                        --detach \
+                        --name ambari-agent \
+                        --network host \
+                        --add-host $(hostname):127.0.0.1 \
+                        --add-host ${ambari_server_hostname}:${ambari_server_address} \
+                        --volume /var/run/ambari-agent:/var/run/ambari-agent \
+                        ${ambari_agent_docker_image} \
+                        sh -c 'ambari-agent start && tail -f /var/log/ambari-agent/ambari-agent.log'"
+ExecStop=/usr/bin/docker stop ambari-agent
+
+[Install]
+WantedBy=multi-user.target
